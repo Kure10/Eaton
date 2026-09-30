@@ -18,7 +18,7 @@ public class DataFileSelector
     /// <summary>
     /// Returns all *.txt files in the folder, sorted by file name.
     /// </summary>
-    public IReadOnlyList<string> FindDataFiles()
+    private IReadOnlyList<string> FindDataFiles()
     {
         if (!Directory.Exists(_folder))
             throw new DataFileException($"Data folder '{_folder}' was not found.");
@@ -39,7 +39,7 @@ public class DataFileSelector
     /// </summary>
     public string SelectFile()
     {
-        var files = FindDataFiles();
+        IReadOnlyList<string> files = FindDataFiles();
 
         // Nothing to choose from, so don't bother the user
         if (files.Count == 1)
