@@ -5,9 +5,6 @@ namespace Eaton;
 /// </summary>
 public class DataFileSelector
 {
-    // Only keys 1-9 are used, so at most 9 files can be offered
-    private const int MaxSelectableFiles = 9;
-
     private readonly string _folder;
 
     public DataFileSelector(string folder)
@@ -34,7 +31,7 @@ public class DataFileSelector
     }
 
     /// <summary>
-    /// Shows the available data files and waits until the user presses a valid number.
+    /// Shows the available data files and waits until the user presses a valid key.
     /// Returns the full path of the selected file.
     /// </summary>
     public string SelectFile()
@@ -48,26 +45,25 @@ public class DataFileSelector
             return files[0];
         }
 
-        var selectable = files.Take(MaxSelectableFiles).ToList();
+        var selectable = files.Take(SelectionKeys.MaxCount).ToList();
 
         Console.WriteLine("Available data files:");
         for (var i = 0; i < selectable.Count; i++)
-            Console.WriteLine($"[{i + 1}] - {Path.GetFileName(selectable[i])}");
+            Console.WriteLine($"[{SelectionKeys.GetKey(i)}] - {Path.GetFileName(selectable[i])}");
 
-        if (files.Count > MaxSelectableFiles)
-            Console.WriteLine($"(Only the first {MaxSelectableFiles} of {files.Count} files can be selected.)");
+        if (files.Count > selectable.Count)
+            Console.WriteLine($"(Only the first {selectable.Count} of {files.Count} files can be selected.)");
 
-        Console.WriteLine($"Which data file would you like to load? (1-{selectable.Count})");
+        Console.WriteLine($"Which data file would you like to load? ({SelectionKeys.DescribeRange(selectable.Count)})");
 
         while (true)
         {
             // intercept: true -> the key is not echoed, so invalid keys leave no trace
             var key = Console.ReadKey(intercept: true);
 
-            var index = key.KeyChar - '1';
-            if (index >= 0 && index < selectable.Count)
+            if (SelectionKeys.TryGetIndex(key.KeyChar, selectable.Count, out int index))
             {
-                Console.WriteLine(key.KeyChar);
+                Console.WriteLine(SelectionKeys.GetKey(index));
                 return selectable[index];
             }
 

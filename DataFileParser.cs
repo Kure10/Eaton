@@ -44,14 +44,64 @@ public class DataFileParser
         if (lines.Count == 0)
             throw new DataFileException("Data file is empty.");
 
-        // Virtual root with no text, so the file may contain more than one top-level direction
-        var root = new Node(string.Empty);
-        var items = new Dictionary<string, Node>(StringComparer.OrdinalIgnoreCase);
+        // Pass 1: turn every text line into (depth, type, text)
+        List<ParsedLine> parsedLines = ParseLines(lines);
 
-        // Stack of currently open directions; the bottom is always the virtual root.
-        // Invariant: stack.Count == depth of the next child + 1
-        Stack<Node> stack = new Stack<Node>();
-        stack.Push(root);
+        // Pass 2: build the tree recursively.
+        // Virtual root with no text, so the file may contain more than one top-level direction
+        Node root = new Node(string.Empty);
+        Dictionary<string, Node> items = new Dictionary<string, Node>(StringComparer.OrdinalIgnoreCase);
+        int index = 0;
+
+        // Attaches all consecutive lines at 'depth' to 'parent'.
+        // A direction recurses one level deeper for its own children.
+        // The first shallower line closes this branch and returns control to the caller.
+        void ParseChildren(Node parent, int depth)
+        {
+            while (index < parsedLines.Count)
+            {
+                ParsedLine line = parsedLines[index];
+
+                // Branch is finished, the line belongs to an ancestor
+                if (line.Depth < depth)
+                    return;
+
+                // A line may be at most one level deeper than its parent
+                if (line.Depth > depth)
+                    throw new DataFileException("Unexpected indentation (a level was skipped or an item has children).", line.LineNumber);
+
+                index++;
+
+                Node node = new Node(line.Text, line.IsItem);
+                parent.AddChild(node);
+
+                if (line.IsItem)
+                {
+                    if (!items.TryAdd(line.Text, node))
+                        throw new DataFileException($"Item '{line.Text}' is defined more than once.", line.LineNumber);
+                }
+                else
+                {
+                    // Open a new branch; following deeper lines become its children
+                    ParseChildren(node, depth + 1);
+                }
+            }
+        }
+
+        ParseChildren(root, 0);
+
+        if (items.Count == 0)
+            throw new DataFileException("Data file does not contain any items.");
+
+        return new ParseResult(root, items);
+    }
+
+    /// <summary>
+    /// Validates and converts every raw line into a <see cref="ParsedLine"/>.
+    /// </summary>
+    private static List<ParsedLine> ParseLines(IReadOnlyList<string> lines)
+    {
+        List<ParsedLine> result = new List<ParsedLine>(lines.Count);
 
         for (int i = 0; i < lines.Count; i++)
         {
@@ -62,36 +112,17 @@ public class DataFileParser
                 throw new DataFileException("Blank lines are not allowed.", lineNumber);
 
             (int depth, bool isItem, string text) = ParseLine(line, lineNumber);
-
-            // Close every branch that is deeper than (or at the same level as) this line
-            while (stack.Count > depth + 1)
-                stack.Pop();
-
-            // A line may be at most one level deeper than its parent
-            if (stack.Count < depth + 1)
-                throw new DataFileException("Unexpected indentation (a level was skipped or an item has children).", lineNumber);
-
-            Node node = new Node(text, isItem);
-            stack.Peek().AddChild(node);
-
-            if (isItem)
-            {
-                if (!items.TryAdd(text, node))
-                    throw new DataFileException($"Item '{text}' is defined more than once.", lineNumber);
-            }
-            else
-            {
-                // Open a new branch; following deeper lines become its children
-                stack.Push(node);
-            }
+            result.Add(new ParsedLine(depth, isItem, text, lineNumber));
         }
 
-        if (items.Count == 0)
-            throw new DataFileException("Data file does not contain any items.");
-
-        return new ParseResult(root, items);
+        return result;
     }
-    
+
+    /// <summary>
+    /// One line of the data file after it has been split into its parts.
+    /// </summary>
+    private record ParsedLine(int Depth, bool IsItem, string Text, int LineNumber);
+
     /// <summary>
     /// Splits a single line into its depth, type and text.
     /// </summary>
