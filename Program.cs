@@ -6,10 +6,14 @@ Console.OutputEncoding = Encoding.UTF8;
 
 try
 {
-    // A data file can be passed as the first argument, otherwise the user picks one from TestData
+    // Where the data comes from, in order of priority:
+    //   1. a path passed as the first argument
+    //   2. "Data.txt" next to the executable or in the current folder (as named in the assignment)
+    //   3. the user picks one of the sample files in TestData
     string dataFilePath = args.Length > 0
         ? args[0]
-        : new DataFileSelector(Path.Combine(AppContext.BaseDirectory, "TestData")).SelectFile();
+        : FindDefaultDataFile()
+          ?? new DataFileSelector(Path.Combine(AppContext.BaseDirectory, "TestData")).SelectFile();
 
     ParseResult data = new DataFileParser().Parse(dataFilePath);
 
@@ -33,3 +37,21 @@ catch (Exception ex)
 }
 
 return 0;
+
+// Returns the full path of "Data.txt" if it exists next to the executable or in the current folder, otherwise null
+static string? FindDefaultDataFile()
+{
+    const string defaultFileName = "Data.txt";
+
+    string[] candidates =
+    [
+        Path.Combine(AppContext.BaseDirectory, defaultFileName),
+        Path.Combine(Directory.GetCurrentDirectory(), defaultFileName)
+    ];
+
+    string? found = candidates.FirstOrDefault(File.Exists);
+    if (found != null)
+        Console.WriteLine($"Using {defaultFileName} found in '{Path.GetDirectoryName(found)}'.");
+
+    return found;
+}

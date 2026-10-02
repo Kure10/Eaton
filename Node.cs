@@ -21,7 +21,7 @@ public class Node
     }
 
     /// <summary>
-    /// Adds a child node and sets this node as its parent.
+    /// Adds a child node and sets this node as its parent.2
     /// </summary>
     public void AddChild(Node child)
     {

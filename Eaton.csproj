@@ -10,6 +10,8 @@
     <ItemGroup>
         <!-- Copy sample data files next to the executable -->
         <None Update="TestData\*.txt" CopyToOutputDirectory="PreserveNewest" />
+        <!-- Optional Data.txt in the project folder is copied as well (ignored if it does not exist) -->
+        <None Update="Data.txt" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>
